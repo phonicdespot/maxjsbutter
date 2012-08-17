@@ -46,8 +46,8 @@ butter2[0] = {
     den: [1,Math.sqrt(2),1]
 };
 butter2[1] = {
-    num: [1,0,0],
-    den: [1,0,0]
+    num: [0,1,0],
+    den: [0,1,0]
 };
 
 var butter3 = new Array(2);

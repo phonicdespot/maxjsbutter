@@ -45,10 +45,6 @@ butter2[0] = {
     num: [0,0,1],
     den: [1,Math.sqrt(2),1]
 };
-butter2[1] = {
-    num: [1,0,0],
-    den: [1,0,0]
-};
 
 var butter3 = new Array(2);
 butter3[0] = {
@@ -115,13 +111,13 @@ function msg_int(a) {
 		    post(a,' ');
 			switch (a) {
 			    case 2 :
-				lpf_coeffs = lpf(butter2,pwc);
+				proto = butter2
 				break;
 			    case 3 :
-				lpf_coeffs = lpf(butter3,pwc);
+				proto = butter3
 				break;
 			    case 4 :
-				lpf_coeffs = lpf(butter4,pwc);
+				proto = butter4
 				break;
 			}
 		case 3 :
@@ -192,7 +188,9 @@ function calculate_coeffs() {
     T = 1/fs;
     wc = 2*Math.PI*fc;
     pwc = prewarp(wc);
-    coeffs = blt(lpf_coeffs,T);
+    lpf_coeffs = lpf(proto,pwc);
+    hpf_coeffs = lpf(proto,pwc);
+    coeffs = blt(hpf_coeffs,T);
     post('coefficients calculated, cutoff ',fc,'\n')
 }
 
@@ -212,7 +210,7 @@ function prewarp(w) {
 //
 function convert_to_cascade_list(cf) {
     var a = [];
-    for (var i=0; i<2; i++) {
+    for (i in cf) {
         a.push.apply(a,convert_to_biquad_list(cf[i]));
     }
     return a;
@@ -250,7 +248,7 @@ function convert_to_biquad_list(cf) {
 lpf.local = 1;
 function lpf(cf,w) {
     var result = new Array(2);
-    for (var i=0; i<2; i++) {
+    for (i in cf) {
         result[i] = {
             num: lpf_qd(cf[i].num,w),
             den: lpf_qd(cf[i].den,w)
@@ -259,6 +257,17 @@ function lpf(cf,w) {
     return result;
 }
 
+hpf.local = 1;
+function hpf(cf,w) {
+    var result = new Array(2);
+    for (i in cf) {
+        result[i] = {
+            num: hpf_qd(cf[i].num,w),
+            den: lpf_qd(cf[i].den,w)
+        }
+    }
+    return result;
+}
 //________________________________________________________________
 //
 //  Given a 3 element array [a,b,c] and a scalar w, this function
@@ -275,6 +284,15 @@ function lpf_qd(cf,w) {
     return result;
 }
 
+hpf_qd.local = 1;
+function hpf_qd(cf,w) {
+    var result = new Array(3);
+    for (var i=0; i<3; i++) {
+        result[i] = cf[i];
+    }
+    return result;
+}
+
 //________________________________________________________________
 //
 //  This function takes the coefficients for an analogue filter
@@ -284,7 +302,7 @@ function lpf_qd(cf,w) {
 blt.local = 1;
 function blt(cf,T) {
     var result = new Array(2);
-    for (var i=0; i<2; i++) {
+    for (i in cf) {
         result[i] = {
             num: blt_qd(cf[i].num,T),
             den: blt_qd(cf[i].den,T)

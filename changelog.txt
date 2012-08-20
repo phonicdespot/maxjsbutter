@@ -1,0 +1,9 @@
+Added inlet assist text.
+Added two further inlets for setting filter type and order.
+Refactored private functions to accept arrays of length n.
+Added HPF functions to handle generation of HPF coefficients.
+Added functionality to change filter order between 2,3 and 4.
+Added functionality to change filter type between high and low pass.
+
+Notes:
+3rd order HPF seems to be playing up; not entirely sure why...

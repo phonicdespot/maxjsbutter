@@ -13,9 +13,10 @@ inlets = 4;     /*  This gives the js object two inlets.
                     sampling frequency.
 
 		    The third inlet sets the filter order.
+		    Accepts 2, 3 or 4.
 
 		    The fourth inlet sets the filter type
-		    (low- or high-pass)
+		    (0 for low-pass, 1 for high-pass)
                 */
 
 setinletassist(0,"Cut-off frequency");
@@ -83,6 +84,7 @@ var lpf_coeffs = lpf(butter4,pwc);  // The coefficients of the
 var coeffs = blt(lpf_coeffs,T);     // The coefficients of the digital
                                     // filter.
 
+var type = 0;	// Filter type: 0,1 for lowpass and highpass
 
 
 
@@ -108,7 +110,6 @@ function msg_int(a) {
 			fs = a;
 		case 2 :
 		    // Filter order
-		    post(a,' ');
 			switch (a) {
 			    case 2 :
 				proto = butter2
@@ -120,8 +121,11 @@ function msg_int(a) {
 				proto = butter4
 				break;
 			}
+			break;
 		case 3 :
 		    // Filter type
+			type = a
+		break;
 	}
 	calculate_coeffs();
     output_coeffs();
@@ -179,7 +183,7 @@ function output_coeffs() {
 }
 
 //________________________________________________________________
-//
+// 
 //  Calculate the coefficients when either the cut-off frequency
 //  or the sampling frequency has changed.
 //
@@ -189,8 +193,16 @@ function calculate_coeffs() {
     wc = 2*Math.PI*fc;
     pwc = prewarp(wc);
     lpf_coeffs = lpf(proto,pwc);
-    hpf_coeffs = lpf(proto,pwc);
-    coeffs = blt(hpf_coeffs,T);
+    hpf_coeffs = hpf(proto,pwc);
+    switch (type) {
+	case 0 :
+	    coeffs = blt(lpf_coeffs,T);
+	break;
+	case 1 :
+	    coeffs = blt(hpf_coeffs,T);
+	break;
+    }
+
     post('coefficients calculated, cutoff ',fc,'\n')
 }
 
@@ -247,7 +259,7 @@ function convert_to_biquad_list(cf) {
 //
 lpf.local = 1;
 function lpf(cf,w) {
-    var result = new Array(2);
+    var result = new Array(cf.length + 1);
     for (i in cf) {
         result[i] = {
             num: lpf_qd(cf[i].num,w),
@@ -257,17 +269,19 @@ function lpf(cf,w) {
     return result;
 }
 
+// Performs frequency transformation for HPF
 hpf.local = 1;
 function hpf(cf,w) {
-    var result = new Array(2);
+    var result = new Array(cf.length + 1);
     for (i in cf) {
         result[i] = {
             num: hpf_qd(cf[i].num,w),
-            den: lpf_qd(cf[i].den,w)
+            den: hpf_qd2(cf[i].den,w)
         }
     }
     return result;
 }
+
 //________________________________________________________________
 //
 //  Given a 3 element array [a,b,c] and a scalar w, this function
@@ -284,14 +298,26 @@ function lpf_qd(cf,w) {
     return result;
 }
 
+// Ensures that the numerator is s^2.
 hpf_qd.local = 1;
 function hpf_qd(cf,w) {
     var result = new Array(3);
-    for (var i=0; i<3; i++) {
-        result[i] = cf[i];
-    }
+        result[0] = 1;
+        result[1] = 0;
+        result[2] = 0;
     return result;
 }
+
+// Similar to lpf_qd, but swaps outer coefficients.
+hpf_qd2.local = 1;
+function hpf_qd2(cf,w) {
+    var result = new Array(3);
+        result[0] = cf[2]*Math.pow(w,0);
+        result[1] = cf[1]*Math.pow(w,1);
+        result[2] = cf[0]*Math.pow(w,2);
+    return result;
+}
+
 
 //________________________________________________________________
 //

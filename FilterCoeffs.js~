@@ -45,10 +45,6 @@ butter2[0] = {
     num: [0,0,1],
     den: [1,Math.sqrt(2),1]
 };
-butter2[1] = {
-    num: [0,1,0],
-    den: [0,1,0]
-};
 
 var butter3 = new Array(2);
 butter3[0] = {
@@ -87,6 +83,7 @@ var lpf_coeffs = lpf(butter4,pwc);  // The coefficients of the
 var coeffs = blt(lpf_coeffs,T);     // The coefficients of the digital
                                     // filter.
 
+var type = 0;	// Filter type: 0,1 for lowpass and highpass
 
 
 
@@ -112,20 +109,22 @@ function msg_int(a) {
 			fs = a;
 		case 2 :
 		    // Filter order
-		    post(a,' ');
 			switch (a) {
 			    case 2 :
-				lpf_coeffs = lpf(butter2,pwc);
+				proto = butter2
 				break;
 			    case 3 :
-				lpf_coeffs = lpf(butter3,pwc);
+				proto = butter3
 				break;
 			    case 4 :
-				lpf_coeffs = lpf(butter4,pwc);
+				proto = butter4
 				break;
 			}
+			break;
 		case 3 :
 		    // Filter type
+			type = a
+		break;
 	}
 	calculate_coeffs();
     output_coeffs();
@@ -183,7 +182,7 @@ function output_coeffs() {
 }
 
 //________________________________________________________________
-//
+// 
 //  Calculate the coefficients when either the cut-off frequency
 //  or the sampling frequency has changed.
 //
@@ -192,7 +191,17 @@ function calculate_coeffs() {
     T = 1/fs;
     wc = 2*Math.PI*fc;
     pwc = prewarp(wc);
-    coeffs = blt(lpf_coeffs,T);
+    lpf_coeffs = lpf(proto,pwc);
+    hpf_coeffs = hpf(proto,pwc);
+    switch (type) {
+	case 0 :
+	    coeffs = blt(lpf_coeffs,T);
+	break;
+	case 1 :
+	    coeffs = blt(hpf_coeffs,T);
+	break;
+    }
+
     post('coefficients calculated, cutoff ',fc,'\n')
 }
 
@@ -212,7 +221,7 @@ function prewarp(w) {
 //
 function convert_to_cascade_list(cf) {
     var a = [];
-    for (var i=0; i<2; i++) {
+    for (i in cf) {
         a.push.apply(a,convert_to_biquad_list(cf[i]));
     }
     return a;
@@ -249,11 +258,24 @@ function convert_to_biquad_list(cf) {
 //
 lpf.local = 1;
 function lpf(cf,w) {
-    var result = new Array(2);
-    for (var i=0; i<2; i++) {
+    var result = new Array(cf.length + 1);
+    for (i in cf) {
         result[i] = {
             num: lpf_qd(cf[i].num,w),
             den: lpf_qd(cf[i].den,w)
+        }
+    }
+    return result;
+}
+
+// Performs frequency transformation for HPF
+hpf.local = 1;
+function hpf(cf,w) {
+    var result = new Array(cf.length + 1);
+    for (i in cf) {
+        result[i] = {
+            num: hpf_qd(cf[i].num,w),
+            den: hpf_qd2(cf[i].den,w)
         }
     }
     return result;
@@ -275,6 +297,27 @@ function lpf_qd(cf,w) {
     return result;
 }
 
+// Ensures that the numerator is s^2.
+hpf_qd.local = 1;
+function hpf_qd(cf,w) {
+    var result = new Array(3);
+        result[0] = 1;
+        result[1] = 0;
+        result[2] = 0;
+    return result;
+}
+
+// Similar to lpf_qd, but swaps outer coefficients.
+hpf_qd2.local = 1;
+function hpf_qd2(cf,w) {
+    var result = new Array(3);
+        result[0] = cf[2]*Math.pow(w,0);
+        result[1] = cf[1]*Math.pow(w,1);
+        result[2] = cf[0]*Math.pow(w,2);
+    return result;
+}
+
+
 //________________________________________________________________
 //
 //  This function takes the coefficients for an analogue filter
@@ -284,7 +327,7 @@ function lpf_qd(cf,w) {
 blt.local = 1;
 function blt(cf,T) {
     var result = new Array(2);
-    for (var i=0; i<2; i++) {
+    for (i in cf) {
         result[i] = {
             num: blt_qd(cf[i].num,T),
             den: blt_qd(cf[i].den,T)
